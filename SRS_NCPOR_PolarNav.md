@@ -1,171 +1,147 @@
 # 🧊 Software Requirements Specification (SRS)
-## PolarNav-AI: Antarctic Sea-Ice, Iceberg Trajectory, and Navigation Decision Support System
+## PolarNav: Uncertainty-Aware Polar Navigation Decision-Support System for Antarctic Research Vessels
 
 ---
 
-## 📄 Executive Summary (The Layman's Analogy)
+## 📄 Executive Summary
 
-Imagine driving a ₹500 Crore ship through an ocean filled with floating blue ice boulders, foggy darkness, and shifting ice sheets. 
-Currently, ship captains in Antarctica look at **yesterday's satellite map** (which is already outdated) and use binoculars. If the ship gets trapped in 10-foot-thick ice, it costs lakhs of rupees per day in fuel, delays scientific missions, or worse, risks vessel damage.
+Navigating research vessels through Antarctic waters requires managing dynamic sea-ice concentrations, shifting iceberg fields, and severe atmospheric forcing. Traditional polar navigation relies heavily on low-frequency satellite observations and manual lookouts. Rapidly changing environmental conditions increase transit times, vessel structural risk, and fuel consumption.
 
-**PolarNav-AI** acts like a **Google Maps for Polar Ships**. 
-- It uses **radar satellite eyes** that see through Antarctic night and clouds.
-- It uses **AI prediction** to forecast where icebergs will drift 3 days into the future.
-- It calculates the **fastest, safest, and most fuel-efficient route** around ice obstacles in real-time.
+**PolarNav** is an uncertainty-aware decision-support prototype designed to integrate multi-source operational Earth-observation data, forecast environmental risk fields under uncertainty, and optimize multi-objective navigation routes for Antarctic operations.
+
+- **Observe:** Fuses SAR satellite observations, sea-ice concentrations, ocean currents, and wind vectors.
+- **Predict:** Combines hydrodynamic baseline kinematics with temporal spatial residual forecasting (Physics-Guided Residual ConvLSTM).
+- **Quantify Uncertainty:** Generates spatial uncertainty maps from Monte Carlo drift ensembles, including variance estimates ($\sigma^2$).
+- **Optimize:** Evaluates multi-objective navigation profiles balancing vessel ice-interaction risk, fuel efficiency, and forecast uncertainty using Dynamic A*.
+- **Explain:** Delivers actionable, quantitative trade-off explanations to vessel officers rather than opaque black-box recommendations.
+
+> **Operational Safety Disclaimer:** PolarNav is a prototype decision-support system intended for tactical route planning. It does not replace certified onboard marine navigation systems, official ice-navigation protocols, or final command authority of ship officers.
 
 ---
 
-## 1. 📌 Introduction & Scope
+## 1. 📌 Introduction & Operational Scope
 
 ### 1.1 Objective
-To develop an AI/ML-driven decision support system for **NCPOR (National Centre for Polar and Ocean Research)** to guide Indian research vessels (like *ORV Sagar Nidhi*) through the Southern Ocean to Indian Antarctic stations (**Maitri** and **Bharti**).
+To develop a decision-support prototype for **NCPOR (National Centre for Polar and Ocean Research)** operational scenarios to optimize passage planning for Indian research vessels (e.g., *ORV Sagar Nidhi*) operating between the Southern Ocean and Indian Antarctic research stations (**Maitri** and **Bharti**).
 
-### 1.2 User Roles & Operational Environment
-- **Primary User:** Ship Captain & Polar Navigation Officers aboard research vessels.
-- **Secondary User:** NCPOR Mission Control in Goa (monitoring ship fleet status).
-- **Environment:** Low-bandwidth satellite links at sea, sub-zero conditions, 24-hour polar winter darkness.
+### 1.2 Dual-Mode Deployment Architecture
+- **Primary Mode (NCPOR Mission Control / Cloud):** Heavy spatial ingestion, satellite feature extraction, and multi-day model forecasting performed on cloud infrastructure. Transmits lightweight vector GeoJSON packages (<100 KB) over Iridium/maritime satellite links.
+- **Onboard Edge Mode (Vessel Fallback):** Local offline navigation client running on vessel hardware. Executes real-time local path replanning against cached environmental cost grids during communications degradation or blackouts.
 
 ---
 
-## 2. 🏗️ System Architecture & Key Factors
+## 2. 🏗️ High-Level System Architecture
 
+```text
+                  POLARNAV ARCHITECTURE
+                            │
+             ┌──────────────┴──────────────┐
+             │       DATA INGESTION        │
+             └──────────────┬──────────────┘
+                            │
+       ┌────────────────────┼────────────────────┐
+       ▼                    ▼                    ▼
+   SAR (Sentinel-1)   NSIDC (Ice Conc)   CMEMS (Currents)
+       │                    │                    │
+       └────────────────────┼────────────────────┘
+                            │
+                           ERA5 (Winds)
+                            │
+                            ▼
+                  ENVIRONMENTAL STATE
+                            │
+       ┌────────────────────┴────────────────────┐
+       ▼                                         ▼
+ SEA-ICE MODEL                            ICEBERG DRIFT
+ (ConvLSTM Residual)                      (Temporal Track + Kinematics)
+       │                                         │
+       └────────────────────┬───────────┬────────┘
+                                        │
+                                        ▼
+                             PROBABILISTIC RISK FIELD
+                           (Monte Carlo Uncertainty σ²)
+                                        │
+                                        ▼
+                            MULTI-OBJECTIVE ROUTER
+                             (Dynamic A* Engine)
+                                        │
+       ┌────────────────────────────────┼────────────────────────────────┐
+       ▼                                ▼                                ▼
+ SAFEST ROUTE                    BALANCED ROUTE                    FASTEST ROUTE
+ (Min Risk Buffer)               (Optimal Trade-off)               (Min Transit Duration)
+       │                                │                                │
+       └────────────────────────────────┼────────────────────────────────┘
+                                        │
+                                        ▼
+                         DECISION EXPLANATION LAYER
+                 (Quantified Risk vs. Fuel vs. Uncertainty Rationale)
+                                        │
+                                        ▼
+                          OFFLINE MARITIME NAVIGATION UI
+                        (Vector Leaflet / React Edge Client)
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                            POLARNAV-AI DATA FLOW                                 │
-└──────────────────────────────────────────────────────────────────────────────────┘
-
-  [Sentinel-1 SAR Radar]     [NSIDC Sea-Ice Conc]     [CMEMS Currents & ERA5 Winds]
-            │                         │                         │
-            ▼                         ▼                         ▼
-┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
-│       MODULE 1        │ │       MODULE 2        │ │       MODULE 3        │
-│  Ice & Iceberg Detect │ │   Drift Predictor     │ │   Route Optimizer     │
-│   (U-Net + OpenCV)    │ │ (ConvLSTM + Physics)  │ │(Cost-Grid Dynamic A*) │
-└───────────┬───────────┘ └───────────┬───────────┘ └───────────┬───────────┘
-            │                         │                         │
-            └─────────────────────────┼─────────────────────────┘
-                                      ▼
-                        ┌───────────────────────────┐
-                        │   SHIP NAVIGATION PANEL   │
-                        │ (Offline React/Leaflet UI)│
-                        └───────────────────────────┘
-```
 
 ---
 
-## 3. 🔬 Deep-Dive: System Modules & Engineering Design
+## 3. 🔬 System Modules & Engineering Specifications
 
-### Module 1: Satellite Iceberg & Sea-Ice Detection Engine
-* **Input:** Sentinel-1 C-band Synthetic Aperture Radar (SAR) Dual-Pol ($HH + HV$) images.
-* **Why SAR?** Optical cameras are useless during 6 months of Antarctic polar night or thick clouds. Radar waves penetrate darkness and clouds!
-* **Model Architecture:** **U-Net / ResNet-50 Encoder** fine-tuned on polar SAR benchmark data.
-* **Layman Analogy:** Like putting night-vision goggles on the ship that highlight icebergs in red and clear water in green.
+### Module 1: Multimodal Environmental Ingestion & SAR Processing
+- **Observation Strategy:** SAR-first observation strategy for high-latitude ocean and ice observation during polar night and cloud-obscured conditions, supplemented by passive microwave and atmospheric datasets.
+- **SAR Backscatter Processing:** Polarization-aware SAR preprocessing and backscatter-derived feature extraction adapted to selected Sentinel-1 acquisition modes (e.g., HH/HV or VV/VH).
 
-### Module 2: Iceberg & Sea-Ice Trajectory Forecasting (24h - 72h)
-* **Input:** Historical ice movement + CMEMS Ocean Surface Currents ($U, V$) + ERA5 Surface Winds ($U_{10}, V_{10}$).
-* **Mathematical Drift Equation (Lagrangian Kinematic Equation):**
-$$\vec{V}_{\text{iceberg}} = \alpha \cdot \vec{V}_{\text{wind}} + \beta \cdot \vec{V}_{\text{ocean\_current}} + \vec{F}_{\text{Coriolis}}$$
-Where $\alpha \approx 0.02$ (2% wind drag) and $\beta \approx 0.8$ (80% water drag).
-* **AI Model:** **ConvLSTM (Convolutional Long Short-Term Memory)** to predict non-linear sea-ice concentration changes ($SIC$) for the next 72 hours.
-* **Layman Analogy:** If you drop a leaf in a flowing river on a windy day, where will it be in 3 hours? We calculate that for 1,000-ton icebergs!
+### Module 2: Physics-Guided Trajectory & Environmental Forecasting
+- **Input Data Sources:** CMEMS Ocean Surface Currents (`GLOBAL_ANALYSISFORECAST_PHY_001_024`) + ERA5 10m Surface Winds.
+- **Temporal Track & Kinematic Baseline:** Iceberg trajectories are constructed from temporally linked multi-frame observations ($t-3, \dots, t$), with dynamical updates modeled as:
+$$\Delta \mathbf{x}_{t+1} = \int_{t}^{t+\Delta t} \left[ \mathbf{v}_{\text{ocean}}(\mathbf{x}, \tau) + \mathbf{v}_{\text{wind\_drift}}(\mathbf{x}, \tau) \right] d\tau + \boldsymbol{\varepsilon}_{\text{ML}}(\mathbf{x}, t)$$
+where $\mathbf{v}_{\text{wind\_drift}}$ is a wind-induced drift parameterization calibrated against observed trajectory forcing.
+- **Learned Residual Correction & Ensemble:** A **Physics-Guided Residual ConvLSTM** models spatial-temporal residual drift ($\boldsymbol{\varepsilon}_{\text{ML}}$), while **Monte Carlo drift simulations** (sampling wind, current, and positional noise distributions) produce explicit spatial uncertainty grids ($\sigma^2$).
 
-### Module 3: Dynamic Ice-Aware Route Optimizer
-* **Input:** Predicted Sea-Ice Concentration Grid + Iceberg Danger Polygons + Ship Fuel Characteristics.
-* **Algorithm:** **Dynamic A* / Fast Marching Method (FMM)** on a 2D Risk Cost Grid.
-* **Cost Function:**
-$$\text{Cell Cost} = w_1 \cdot \text{Distance} + w_2 \cdot (\text{SeaIce\_Density})^2 + w_3 \cdot \frac{1}{\text{Dist\_to\_Iceberg}}$$
-* **Layman Analogy:** Google Maps recalculating your route when it detects a traffic jam ahead — except here, the traffic jam is a 10-mile pack of sea ice!
+### Module 3: Multi-Objective Route Optimization & Decision Explanation
 
----
+- **Algorithm:** **Dynamic A*** operating on a discretized 2D risk-cost grid derived from the environmental risk field.
+- **Objective Functional:**
+$$\mathcal{J}(\pi) = \int_{0}^{T} \left[ w_1 \cdot \mathcal{C}_{\text{fuel}}(v(t), \text{SIC}(\mathbf{x})) + w_2 \cdot \mathcal{R}_{\text{ice}}(\text{SIC}(\mathbf{x}), \mathbf{d}_{\text{iceberg}}) + w_3 \cdot \mathcal{U}_{\text{forecast}}(\mathbf{x}, t) \right] dt$$
 
-## ⚠️ 4. Key Problems, Real-World Limitations & Research Solutions
-
-Here are the **6 biggest challenges** you will face on this project, supported by academic research papers, along with our concrete solutions:
+- **Surrogate Hydrodynamic Fuel Model:** Parameterized by vessel displacement, speed, and local sea-ice concentration ($SIC$).
+- **Decision Explanation Layer:** Quantifies the rationale for each route by reporting relative changes in predicted ice-interaction risk, estimated fuel consumption, transit duration, and forecast uncertainty compared with alternative routes.
 
 ---
 
-### 🔴 Problem #1: "Polar Night & Cloud Cover" (Optical Satellites Don't Work)
-* **The Challenge:** Antarctica experiences 24-hour pitch darkness during polar winter. Optical satellites (like Sentinel-2 or Landsat) produce 100% black images.
-* **Research Paper Context:** *IEEE TGRS (Transactions on Geoscience and Remote Sensing)* papers show optical satellite availability drops to $<15\%$ in high latitudes.
-* **Our Solution (Layman Explanation):** 
-  - **Solution:** We strictly use **SAR (Synthetic Aperture Radar)**. 
-  - **Layman Analogy:** Sound waves/sonar in a dark room. Radar sends its own radio waves down to Earth and listens for the bounce. Ice reflects radio waves differently than liquid ocean water, making icebergs shine bright white even in zero daylight.
+## 4. ⚠️ Technical Risk Mitigation & Solutions Matrix
+
+| Operational Challenge | Root Cause | Engineering Solution |
+| :--- | :--- | :--- |
+| **Polar Night & Cloud Cover** | Optical satellite bands blinded in winter | SAR-first pipeline using polarization-aware C-band SAR. |
+| **SAR Speckle Backscatter Noise** | Wave clutter causes false iceberg alarms | SAR speckle filtering and polarization-aware backscatter features adapted to acquisition mode. |
+| **Bandwidth Limits at Sea** | High latency satellite links (<100 kbps) | Cloud generates compressed tiny GeoJSON vector route packages (<100 KB). |
+| **Non-linear Environmental Drift** | Pure linear momentum ignores hydrodynamic drag | Physical kinematic baseline coupled with spatial ConvLSTM residual learning. |
+| **Unrealistic Vessel Maneuvers** | Grid pathfinding generates sharp turns | Dynamic A* path smoothing constrained by vessel turning radius & inertia. |
+| **Communications Blackout** | Vessel loses satellite connectivity | Edge client executes autonomous local route replanning on cached risk maps. |
 
 ---
 
-### 🔴 Problem #2: "Speckle Noise in Radar Imagery" (False Iceberg Alarms)
-* **The Challenge:** SAR radar images suffer from "speckle noise" — graininess caused by ocean wave ripples that look identical to small icebergs.
-* **Research Paper Context:** *MDPI Remote Sensing (2024)* highlights that ocean wave roughness leads to high false-positive rates in automated iceberg detectors.
-* **Our Solution:**
-  - **Solution:** Apply a **Lee Speckle Filter** followed by **Dual-Polarization Ratio Thresholding ($HH / HV$)**. Icebergs depolarize radar signals differently than ocean waves.
+## 5. 📊 Validation Hierarchy & Target Benchmarks
 
----
+### 5.1 Validation Data Hierarchy
+1. **Proposed Primary Validation:** Historical Antarctic iceberg drift tracks (Pending exact dataset ID verification: e.g., *BYU Antarctic Iceberg Tracking Database / NSIDC Iceberg Tracking Repository*).
+2. **Secondary Validation:** Synthetic benchmark drift trajectories generated from observed environmental forcing.
+3. **Auxiliary Validation:** Oceanographic buoy drift data for isolating ocean current drag parameters.
 
-### 🔴 Problem #3: "Low Bandwidth Internet at Sea" (Can't Download Gigabytes of Data)
-* **The Challenge:** Ships near Antarctica communicate via slow Iridium satellite links (often $<100\text{ kbps}$). You CANNOT stream a 2GB satellite image to the ship.
-* **Our Solution (Layman Explanation):**
-  - **Solution:** **Edge Computing Strategy.** The heavy AI processing runs on cloud servers in India. The cloud server converts the massive 2GB image into a tiny **Vector GeoJSON Route File (less than 50 KB)**.
-  - **Layman Analogy:** Instead of downloading a high-definition video of a road map, the ship just receives a text message with GPS turn-by-turn coordinates!
+### 5.2 Target Benchmarks for System Validation
 
----
-
-### 🔴 Problem #4: "Non-Linear Iceberg Drift" (Wind vs. Water Drag Conflict)
-* **The Challenge:** Deep icebergs with deep underwater "keels" move with ocean currents, while flat ice floes move with surface winds. Simple linear drift prediction fails.
-* **Research Paper Context:** *The Cryosphere (Copernicus 2023)* demonstrates that uncoupled drift models accumulate over 30 km of trajectory error within 48 hours.
-* **Our Solution:**
-  - **Solution:** Use a **Hybrid Physics-Informed Neural Network (PINN)**. We combine physical hydrodynamics equations with a ConvLSTM ML model so physical laws constrain the AI's spatial predictions.
-
----
-
-### 🔴 Problem #5: "Sharp Sharp Turns" (Ships Can't Turn Like Cars)
-* **The Challenge:** Standard grid pathfinding (like basic A*) produces sharp 90-degree zig-zag turns that a 10,000-ton research ship physically cannot make in sea ice.
-* **Our Solution:**
-  - **Solution:** Use **Dubins Path / Fast Marching Method (FMM)** which incorporates the ship's minimum turning radius and momentum constraints.
-
----
-
-### 🔴 Problem #6: "Changing Ice Conditions During Voyage" (Dynamic Environment)
-* **The Challenge:** A route calculated at 8:00 AM might be blocked by 2:00 PM because ice shifts with ocean tides.
-* **Our Solution:**
-  - **Solution:** **Anytime Repairing A* (ARA*) Algorithm.** The system continuously runs low-overhead spatial checks against updated SAR streams and recalculates alternate waypoints on the fly.
-
----
-
-## 📊 5. Non-Functional Requirements & Performance Benchmarks
-
-| Metric | Target Goal | Justification |
-|--------|-------------|---------------|
-| **Iceberg Segmentation Accuracy (IoU)** | $> 85\%$ | Prevents missing hazardous ice floes |
-| **72h Trajectory Mean Error** | $< 8 \text{ km}$ | Keeps vessel safely outside iceberg danger buffer |
-| **Payload Size sent to Ship** | $< 100 \text{ KB}$ | Works on slow satellite links |
-| **Path Optimization Time** | $< 15 \text{ seconds}$ | Instant routing response for ship captain |
-| **Fuel Savings** | $12\% - 18\%$ | Saves lakhs of rupees in diesel consumption |
-
----
-
-## 🚀 6. System Implementation Roadmap (36-Hour Hackathon Strategy)
-
-```
-HOUR 0 - 12: DATA & SEGMENTATION
-├── Download pre-processed Sentinel-1 SAR samples (Prydz Bay / Maitri Corridor)
-├── Run Lee Filter & train U-Net model on Kaggle Statoil SAR iceberg dataset
-└── Output: Binary Ice/Water Probability Grid
-
-HOUR 12 - 24: TRAJECTORY & PATHFINDING
-├── Build Kinematic Drift model (incorporating ERA5 U/V vectors)
-├── Implement Dynamic A* on 2D Sea-Ice Cost Grid
-└── Output: Optimized Waypoint Array [Lat, Lon]
-
-HOUR 24 - 36: DASHBOARD & PRESENTATION
-├── Build Leaflet/Streamlit UI with satellite layer & ship route overlay
-├── Prepare live demo showing simulated iceberg drift & route recalculation
-└── Final pitch deck creation targeting NCPOR judges
-```
+| Metric | Target Engineering Goal | Validation Strategy |
+| :--- | :--- | :--- |
+| **Iceberg Segmentation Accuracy** | Target IoU $> 85\%$ | Benchmark against annotated C-CORE / Statoil image patches |
+| **72h Trajectory Displacement** | Target Mean Error $< 10\text{ km}$ | Primary validation against historical Antarctic iceberg tracks |
+| **Transmitted Route Payload Size** | Target $< 100\text{ KB}$ | Serialized GeoJSON vector payload size verification |
+| **Path Computation Latency** | Target $< 15\text{ seconds}$ | Benchmark Dynamic A* replanning speed on $500 \times 500$ grids |
+| **Operational Efficiency Impact** | Quantitative Fuel / Distance Trade-off | Comparative simulation against baseline direct A* pathfinding |
 
 ---
 
 <div align="center">
 
-**Prepared for Smart India Hackathon 2026 | NCPOR & Ministry of Earth Sciences**
+**PolarNav Engineering Specification | Smart India Hackathon 2026**  
+*National Centre for Polar and Ocean Research (NCPOR)*
 
 </div>
