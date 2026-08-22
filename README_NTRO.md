@@ -64,6 +64,7 @@
 |----------------|---------------------|
 | *"Why not just rely on standard DMARC?"* | *"DMARC only works if the domain owner has configured `p=reject`. Over 60% of domains still use `p=none` or have broken SPF alignment. SecureMailScope evaluates multi-factor cryptographic signals (TLS versions, DKIM key size, hop geometry) even when DMARC is incomplete."* |
 | *"How do you handle forwarded emails where SPF fails?"* | *"We implemented **Authenticated Received Chain (ARC)** validation (RFC 8617). If SPF fails due to forwarding, our model checks the signed ARC seals at intermediate hops to verify authenticity without raising false alarms."* |
+| *"How do you detect weak DKIM signatures if they pass verification?"* | *"We extract the public key modulus `p=` directly from DNS TXT records. If the key size is under 1024 bits, we flag it as a **Vulnerable Legacy Key** regardless of signature validity, protecting against key factorization attacks."* |
 | *"Does your AI model read the email body text?"* | *"No, sir. SecureMailScope operates 100% on email metadata and cryptographic headers. This guarantees privacy compliance for classified NTRO communications."* |
 
 ---
