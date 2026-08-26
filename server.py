@@ -266,12 +266,17 @@ def get_validation_metrics():
 # ==========================================
 
 @app.websocket("/ws/ate-stream")
-async def websocket_ate_stream(websocket: WebSocket):
+async def websocket_ate_stream(websocket: WebSocket, lot_id: str = "LOT_2026_07"):
     await websocket.accept()
-    df_lot = pd.read_csv("D:\\SIH 2026\\astraguard_core\\data\\LOT_2026_07.csv")
+    file_path = f"D:\\SIH 2026\\astraguard_core\\data\\{lot_id}.csv"
+    try:
+        df_lot = pd.read_csv(file_path)
+    except:
+        df_lot = pd.read_csv("D:\\SIH 2026\\astraguard_core\\data\\LOT_2026_07.csv")
     
     try:
         for idx, row in df_lot.iterrows():
+
             single_df = pd.DataFrame([row])
             res = predictor.predict_lot(single_df).iloc[0]
             
@@ -292,4 +297,6 @@ async def websocket_ate_stream(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # Bind to 0.0.0.0 to accept incoming ATE SDK requests from external laptops (e.g. Panel Laptop over Wi-Fi/LAN)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+

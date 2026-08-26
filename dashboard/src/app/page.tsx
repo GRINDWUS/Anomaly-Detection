@@ -19,34 +19,64 @@ interface ComponentData {
 
 export default function AstraGuardDashboard() {
   const [activeTab, setActiveTab] = useState<"operations" | "component" | "analytics" | "telemetry">("operations");
-  const [useWebSocket, setUseWebSocket] = useState(true);
+  const [viewMode, setViewMode] = useState<"LIVE_STREAM" | "HISTORICAL_LOT">("LIVE_STREAM");
+  const [wsStatus, setWsStatus] = useState<"IDLE" | "CONNECTING" | "STREAMING" | "COMPLETED" | "ERROR">("IDLE");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [selectedLot, setSelectedLot] = useState<string>("LOT_2026_07");
   const [processedComponents, setProcessedComponents] = useState<ComponentData[]>([]);
   const [selectedComponent, setSelectedComponent] = useState<ComponentData | null>(null);
   const [shapData, setShapData] = useState<any>(null);
   const [telemetryReport, setTelemetryReport] = useState<any>(null);
   
+  // Real-Time Stats (starts at absolute 0 in Live Mode)
   const [stats, setStats] = useState({
     total: 1000,
     processed: 0,
     green: 0,
     yellow: 0,
     red: 0,
-    hoursSaved: 84.56
+    hoursSaved: 0.0
   });
 
-  // Fetch initial Lot Summary and Telemetry Report on load
-  useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/v1/stage-a/lot-summary/LOT_2026_07")
-      .then(res => res.json())
-      .then(data => console.log("Lot Summary:", data))
-      .catch(err => console.error("Lot summary fetch error:", err));
+  // Handle Mode Change or Lot Load
+  const loadHistoricalLot = (lotId: string) => {
+    setViewMode("HISTORICAL_LOT");
+    setIsStreaming(false);
+    setWsStatus("IDLE");
+    setProcessedComponents([]);
+    setSelectedComponent(null);
 
+    fetch(`http://127.0.0.1:8000/api/v1/stage-a/lot-summary/${lotId}`)
+      .then(res => res.json())
+      .then(data => {
+        setStats({
+          total: data.total_components || 1000,
+          processed: data.total_components || 1000,
+          green: data.green_pass_count || 0,
+          yellow: data.yellow_extended_count || 0,
+          red: data.red_reject_count || 0,
+          hoursSaved: data.chamber_hours_saved_percent || 84.56
+        });
+      })
+      .catch(err => console.error("Lot summary fetch error:", err));
+  };
+
+
+  const startLiveStream = () => {
+    setViewMode("LIVE_STREAM");
+    setProcessedComponents([]);
+    setSelectedComponent(null);
+    setStats({ total: 1000, processed: 0, green: 0, yellow: 0, red: 0, hoursSaved: 0.0 });
+    setIsStreaming(true);
+  };
+
+  // Fetch Stage B Telemetry sample
+  useEffect(() => {
     fetch("http://127.0.0.1:8000/api/v1/stage-b/evaluate-telemetry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        component_id: "LOT_2026_01_COMP_0000",
+        component_id: `${selectedLot}_COMP_0000`,
         telemetry_iddq: 24.5,
         mission_day: 180
       })
@@ -54,7 +84,7 @@ export default function AstraGuardDashboard() {
       .then(res => res.json())
       .then(data => setTelemetryReport(data))
       .catch(err => console.error("Telemetry report fetch error:", err));
-  }, []);
+  }, [selectedLot]);
 
   // Fetch SHAP attribution when component selected
   useEffect(() => {
@@ -71,39 +101,65 @@ export default function AstraGuardDashboard() {
     let ws: WebSocket | null = null;
 
     if (isStreaming) {
-      ws = new WebSocket("ws://127.0.0.1:8000/ws/ate-stream");
+      setWsStatus("CONNECTING");
+      ws = new WebSocket(`ws://127.0.0.1:8000/ws/ate-stream?lot_id=${selectedLot}`);
 
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        const newComp: ComponentData = {
-          component_id: data.component_id,
-          iddq_0h: data.iddq_0h,
-          iddq_24h: data.iddq_24h,
-          predicted_168h: data.predicted_168h_iddq_ua,
-          risk_tier: data.risk_tier,
-          drift_delta: data.delta_24h_ua,
-          z_score: data.spatial_z_score
-        };
-
-        setProcessedComponents(prev => [newComp, ...prev.slice(0, 49)]);
-        setSelectedComponent(curr => curr || newComp);
-
-        setStats(prev => ({
-          ...prev,
-          processed: prev.processed + 1,
-          green: prev.green + (data.risk_tier === "GREEN_AUTO_PASS" ? 1 : 0),
-          yellow: prev.yellow + (data.risk_tier === "YELLOW_EXTENDED_TEST" ? 1 : 0),
-          red: prev.red + (data.risk_tier === "RED_EARLY_REJECT" ? 1 : 0),
-        }));
+      ws.onopen = () => {
+        setWsStatus("STREAMING");
       };
 
-      ws.onerror = (err) => console.error("WebSocket error:", err);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const newComp: ComponentData = {
+            component_id: data.component_id,
+            iddq_0h: data.iddq_0h,
+            iddq_24h: data.iddq_24h,
+            predicted_168h: data.predicted_168h_iddq_ua,
+            risk_tier: data.risk_tier,
+            drift_delta: data.delta_24h_ua,
+            z_score: data.spatial_z_score
+          };
+          setProcessedComponents(prev => [newComp, ...prev.slice(0, 49)]);
+          setSelectedComponent(curr => curr || newComp);
+          setStats(prev => {
+            const nextProcessed = prev.processed + 1;
+            const nextGreen = prev.green + (data.risk_tier === "GREEN_AUTO_PASS" ? 1 : 0);
+            const nextYellow = prev.yellow + (data.risk_tier === "YELLOW_EXTENDED_TEST" ? 1 : 0);
+            const nextRed = prev.red + (data.risk_tier === "RED_EARLY_REJECT" ? 1 : 0);
+            const traditionalHours = nextProcessed * 168;
+            const actualHours = (nextGreen * 24) + (nextYellow * 72) + (nextRed * 24);
+            const hoursSaved = traditionalHours > 0 ? ((traditionalHours - actualHours) / traditionalHours) * 100 : 0;
+
+            return {
+              ...prev,
+              processed: nextProcessed,
+              green: nextGreen,
+              yellow: nextYellow,
+              red: nextRed,
+              hoursSaved: parseFloat(hoursSaved.toFixed(2))
+            };
+          });
+        } catch (e) {
+          console.error("WS parse error:", e);
+        }
+      };
+
+      ws.onerror = () => {
+        setWsStatus("ERROR");
+      };
+
+      ws.onclose = () => {
+        setWsStatus("COMPLETED");
+        setIsStreaming(false);
+      };
     }
 
     return () => {
       if (ws) ws.close();
     };
-  }, [isStreaming]);
+  }, [isStreaming, selectedLot]);
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
@@ -121,12 +177,79 @@ export default function AstraGuardDashboard() {
           </div>
         </div>
 
-        {/* Live Controls */}
+        {/* Controls */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-            <span className="text-slate-300 font-medium">WebSocket: ws://127.0.0.1:8000/ws/ate-stream</span>
+          {/* Mode Switcher */}
+          <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-0.5 text-xs font-semibold">
+            <button
+              onClick={() => {
+                setViewMode("LIVE_STREAM");
+                setIsStreaming(false);
+                setWsStatus("IDLE");
+                setProcessedComponents([]);
+                setSelectedComponent(null);
+                setStats({ total: 1000, processed: 0, green: 0, yellow: 0, red: 0, hoursSaved: 0.0 });
+              }}
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${
+                viewMode === "LIVE_STREAM" ? "bg-teal-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <Radio className="w-3.5 h-3.5" /> Mode B: Live ATE
+            </button>
+            <button
+              onClick={() => loadHistoricalLot(selectedLot)}
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${
+                viewMode === "HISTORICAL_LOT" ? "bg-teal-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" /> Mode A: Lot Analysis
+            </button>
           </div>
+
+          {/* Interactive Lot Selector */}
+          <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-lg text-xs">
+            <Layers className="w-4 h-4 text-teal-400" />
+            <span className="text-slate-400 font-medium">ATE Lot:</span>
+            <select
+              value={selectedLot}
+              onChange={(e) => {
+                const nextLot = e.target.value;
+                setSelectedLot(nextLot);
+                if (viewMode === "HISTORICAL_LOT") {
+                  loadHistoricalLot(nextLot);
+                } else {
+                  setIsStreaming(false);
+                  setWsStatus("IDLE");
+                  setProcessedComponents([]);
+                  setSelectedComponent(null);
+                  setStats({ total: 1000, processed: 0, green: 0, yellow: 0, red: 0, hoursSaved: 0.0 });
+                }
+              }}
+              className="bg-slate-900 text-teal-300 font-bold border border-slate-700 rounded px-2 py-1 focus:outline-none focus:border-teal-400 cursor-pointer"
+            >
+              <option value="LOT_2026_01">LOT_2026_01 (Train)</option>
+              <option value="LOT_2026_02">LOT_2026_02 (Train)</option>
+              <option value="LOT_2026_03">LOT_2026_03 (Train)</option>
+              <option value="LOT_2026_04">LOT_2026_04 (Train)</option>
+              <option value="LOT_2026_05">LOT_2026_05 (Train)</option>
+              <option value="LOT_2026_06">LOT_2026_06 (Val)</option>
+              <option value="LOT_2026_07">LOT_2026_07 (Blind Test)</option>
+            </select>
+          </div>
+
+
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs">
+            <span className={`w-2.5 h-2.5 rounded-full ${
+              wsStatus === "STREAMING" ? "bg-emerald-400 animate-ping" :
+              wsStatus === "CONNECTING" ? "bg-amber-400 animate-pulse" :
+              wsStatus === "ERROR" ? "bg-rose-400" :
+              "bg-slate-500"
+            }`}></span>
+            <span className="text-slate-300 font-medium">
+              WS: {wsStatus === "STREAMING" ? "Streaming" : wsStatus === "CONNECTING" ? "Connecting…" : wsStatus === "ERROR" ? "Error" : wsStatus === "COMPLETED" ? "Completed" : "Idle"}
+            </span>
+          </div>
+
 
           <button
             onClick={() => setIsStreaming(!isStreaming)}
@@ -141,6 +264,7 @@ export default function AstraGuardDashboard() {
           </button>
         </div>
       </header>
+
 
       {/* Tabs */}
       <div className="bg-slate-900/40 border-b border-slate-800 px-6 flex gap-6 text-sm font-medium">
@@ -184,10 +308,11 @@ export default function AstraGuardDashboard() {
         {/* Metric Cards */}
         <div className="col-span-12 grid grid-cols-5 gap-4">
           <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
-            <div className="text-xs text-slate-400 font-medium uppercase">Lot ID / Total Components</div>
-            <div className="text-xl font-bold text-white mt-1">LOT_2026_07</div>
-            <div className="text-xs text-slate-400 mt-1">Processed: <span className="text-teal-400 font-semibold">{stats.processed} / 1000</span></div>
+            <div className="text-xs text-slate-400 font-medium uppercase">Active Lot / Components</div>
+            <div className="text-xl font-bold text-white mt-1">{selectedLot}</div>
+            <div className="text-xs text-slate-400 mt-1">Processed: <span className="text-teal-400 font-semibold">{stats.processed} / {stats.total}</span></div>
           </div>
+
           <div className="bg-slate-900/60 border border-emerald-500/20 p-4 rounded-xl">
             <div className="text-xs text-emerald-400 font-medium uppercase flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" /> 🟢 Green Pass (24h)
