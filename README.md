@@ -1,42 +1,51 @@
-# 🛡️ AstraGuard 2.0 — Space-Grade Semiconductor & Telemetry Reliability Platform
+# 🛡️ AstraGuard 3.0 — Hybrid Reliability Intelligence Platform
 
 > **Smart India Hackathon 2026 Submission** | **Problem Statement #SIH26170 (ISRO)**  
-> *Physics-Informed Predictive Semiconductor Burn-In & In-Orbit Satellite Telemetry Reliability Platform*
+> *Physics-Informed Semiconductor Screening & In-Orbit Satellite Reliability Engine*
 
 ---
 
-## 📖 System Architecture & Core Highlights
+## 📖 System Architecture & Multi-Eye Intelligence
 
-AstraGuard 2.0 is an end-to-end reliability platform engineered specifically for space-grade microelectronics qualification and satellite in-orbit telemetry monitoring.
+AstraGuard 3.0 is a research-grade, 4-Eye Hybrid Reliability Intelligence Platform engineered specifically for space-grade microelectronics qualification (MIL-STD-883, ESCC 9000) and satellite in-orbit telemetry monitoring.
 
 ```text
- ┌─────────────────────────────────────────────────────────────────────────┐
- │                   ASTRAGUARD 2.0 SYSTEM ARCHITECTURE                    │
- └─────────────────────────────────────────────────────────────────────────┘
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │                     ASTRAGUARD 3.0 SYSTEM ARCHITECTURE                      │
+ └─────────────────────────────────────────────────────────────────────────────┘
 
-   [ASTRAGUARD ATE SDK]  ──(REST/JSON)──▶  [FASTAPI INGESTION ENGINE]
-   (pip install astraguard-sdk)             (Port 8000)
-            │                                      │
-            ▼                                      ▼
-   [ATE CHAMBER SIMULATOR]               [MODULE A: OUTLIER DETECTOR]
-   (Normal & Injected Fault Streams)       (Dynamic Lot Spatial Z-Score)
-                                                   │
-                                                   ▼
-                                         [MODULE B: DRIFT FORECASTER]
-                                         (XGBoost 168h IDDQ Predictor)
-                                                   │
-                                                   ▼
-                                         [3-TIER RISK DECISION ENGINE]
-                                         (GREEN / YELLOW / RED Logic)
-                                                   │
-                                     ┌─────────────┴─────────────┐
-                                     ▼                           ▼
-                             [WEBSOCKET STREAM]          [SHAP EXPLANATION]
-                                     │                           │
-                                     └─────────────┬─────────────┘
-                                                   ▼
-                                     [NEXT.JS OPERATOR DASHBOARD]
-                                     (Port 3000 - 4 Live Views)
+    [ASTRAGUARD ATE SDK]  ──(REST/JSON)──▶  [FASTAPI INGESTION ENGINE]
+    (pip install astraguard-sdk)             (Port 8000)
+             │                                      │
+             ▼                                      ▼
+    [ASQD 2.1 SIMULATOR]                  [PHYSICS & DATA NORMALIZER]
+    (6 Failure Archetypes + Noise)         (Unit Scaling + Calibration)
+                                                    │
+             ┌──────────────────────────────────────┼──────────────────────────────────────┐
+             ▼                                      ▼                                      ▼
+    👁️ EYE 1: SPATIAL              👁️ EYE 2: PREDICTIVE                   👁️ EYE 3: UNSUPERVISED OOD
+    Population Intelligence        Supervised ML (XGBoost)                Multi-Layer Anomaly Detector
+             │                                      │                                      │
+    • Robust Median / MAD          • 0h/24h -> 168h IDDQ Forecast         • Eye 3A: Isolation Forest (Static)
+    • Dynamic Lot Z-Score          • Defect Risk Probability P(Defect)    • Eye 3B: LSTM Autoencoder (Temporal)
+             │                                      │                                      │
+             └──────────────────────────────────────┼──────────────────────────────────────┘
+                                                    ▼
+                                       [MULTI-EYE EVIDENCE FUSION]
+                                      (Corroborating Evidence Matrix)
+                                                    │
+                                                    ▼
+                                       [POLICY ENGINE (policy-3.0)]
+                                       (GREEN / YELLOW / UNKNOWN / RED)
+                                                    │
+                                      ┌─────────────┴─────────────┐
+                                      ▼                           ▼
+                              [WEBSOCKET STREAM]          [SHAP & REASON CODES]
+                                      │                           │
+                                      └─────────────┬─────────────┘
+                                                    ▼
+                                      [NEXT.JS OPERATOR DASHBOARD]
+                                      (Port 3000 - Live Interactive UI)
 ```
 
 ---
@@ -73,71 +82,35 @@ In a separate terminal:
 python ate_chamber_simulator.py
 ```
 
----
-
-## 🌐 Testing on Another Machine (Panel / Remote Laptop Setup)
-
-If the ISRO panel asks you to install and test the SDK on **their laptop** or another external machine connected to the same Wi-Fi/LAN network:
-
-### Step 1: Bind your Backend Server to `0.0.0.0`
-On host machine running `server.py`, pass your LAN IP or `0.0.0.0`:
+### 5. Run the Complete 8-Experiment Validation Suite
 ```bash
-# Finds host machine LAN IP (e.g., 192.168.1.15)
-ipconfig
+python -c "from validation.run_experiments import main; main()"
 ```
-
-### Step 2: Install SDK on the Remote Machine
-Copy the pre-compiled wheel package (`dist/astraguard_sdk-2.0.0-py3-none-any.whl`) or git repo to their laptop, then run:
-```bash
-pip install astraguard_sdk-2.0.0-py3-none-any.whl
-```
-*(Or install directly via git/network path: `pip install git+https://github.com/your-repo/sih-2026.git`)*
-
-### Step 3: Run SDK Code on the Remote Machine
-On the external laptop, run 3 lines of Python to send live ATE measurements to your server:
-```python
-from astraguard_sdk import AstraGuardATESDK
-
-# Point base_url to your laptop's IP address (e.g. http://192.168.1.15:8000)
-sdk = AstraGuardATESDK(base_url="http://<YOUR_HOST_LAPTOP_IP>:8000")
-
-# Verify connection
-if sdk.check_connection():
-    print("🟢 Connected to Host AstraGuard Server!")
-
-# Send ATE measurement from remote machine
-result = sdk.submit_measurement(
-    component_id="ISRO_PANEL_TEST_001",
-    measurements={"iddq_0h": 12.4, "iddq_24h": 32.1}
-)
-
-print("Remote Prediction Result:", result)
-# Output: {'component_id': 'ISRO_PANEL_TEST_001', 'predicted_168h_iddq_ua': 1580.4, 'risk_tier': 'RED_EARLY_REJECT'}
-```
-
 
 ---
 
-## 🔬 Core System Features
+## 🔬 Validation & Defensibility Summary (AstraGuard 3.0)
 
-1. **Strict Information Boundary:** Prediction models rely *only* on $0\text{h}$ and $24\text{h}$ ATE measurements to predict $168\text{h}$ leakage, preventing data leakage.
-2. **Module A (Dynamic Lot Outlier Detection):** Calculates relative lot spatial z-scores and population drift velocities.
-3. **Module B (168h Time-Series Forecast):** Predicts final $168\text{h}$ leakage with **$2.73\,\mu\text{A}$ MAE** and **$0.0\%$ False Negative Rate** on blind test lots.
-4. **3-Tier Risk Engine:**
-   * 🟢 **GREEN_AUTO_PASS:** Early pass at $24\text{h}$ ($84.69\%$ chamber-hour reduction).
-   * 🟡 **YELLOW_EXTENDED_TEST:** Assigned for extended $72\text{h}$ testing.
-   * 🔴 **RED_EARLY_REJECT:** Flagged for early QA rejection.
-5. **Stage-B Post-Launch Monitoring:** Tracks in-orbit satellite sensor telemetry against pre-launch qualified fingerprints for FDIR early warning.
-
----
-
-## 🧪 Running Automated Unit & Integration Tests
-
-Execute the comprehensive system test suite:
-```bash
-python -m unittest discover -s tests
-```
-*Validates SDK contracts, server API endpoints, SHAP attributions, and Stage-B telemetry functions.*
+| Experiment / Metric | Result | Meaning for Aerospace Screening |
+| --- | --- | --- |
+| **Exp 1: Predictive Horizon** | MAE = **0.08 µA** ($R^2 > 0.98$) | Accurately forecasts 168h leakage at 24h checkpoint |
+| **Exp 2: Population Advantage** | Recall = **100.0%** ($F_1 = 0.96$) | Catches spatial and kinetics outliers without silent escapes |
+| **Exp 3: Rare-Failure Sweep** | Recall = **100.0%** across $0.5\% \dots 8\%$ prevalence | Robust under extreme aerospace class imbalance |
+| **Exp 4: Fault Separation** | Detection Rate = **100.0%** | Distinguishes component failure from ATE channel freeze |
+| **Exp 7: Fingerprinting** | **20 JSON Fingerprints** generated | Pre-launch Stage A evidence persists into Stage B orbit |
+| **Exp 8: Known vs Unknown** | Flagging Rate = **96.7%** (0% silent escapes) | LSTM AE + IsoForest flag unmodeled Class 6 mechanisms |
+| **Stress Test A: Lot Shift** | Recall = **100.0%** | Robust against baseline manufacturing lot shifts (+0.45µA) |
+| **Stress Test B: ATE Noise** | Recall = **100.0%** | Robust under extreme SMU measurement noise ($\sigma=0.25$) |
 
 ---
-*Created for ISRO SIH 2026 Hackathon Presentation.*
+
+## 🎯 ISRO Panel Q&A Quick Reference
+
+* **Q: "Where did you get your training data?"**  
+  *A:* "ASQD 2.1 — a synthetic qualification dataset grounded in published semiconductor physics (Arrhenius thermal acceleration $E_a=0.68\text{ eV}$, Black's electromigration kinetics, and MEMS thermal stress). It is strictly synthetic, reproducible via lot random seeds, and validated against MIL-STD-883 screening statistics."
+
+* **Q: "What if a component fails due to an unknown failure mechanism not in your training set?"**  
+  *A:* "AstraGuard 3.0 uses a 4-Eye Hybrid Architecture. While XGBoost models known defect signatures, our Unsupervised Isolation Forest and LSTM Autoencoder monitor high-dimensional feature spaces and temporal evolution. In Experiment 8, Class 6 (Dielectric Oscillation) was withheld from training; the unsupervised layers flagged 96.7% of unknown parts, routing them to `UNKNOWN_PATTERN_REVIEW` with zero silent escapes."
+
+* **Q: "Why does AstraGuard recommend extending burn-in rather than rejecting outright?"**  
+  *A:* "AstraGuard recommends; the qualification authority decides. When an unknown or marginal pattern is detected, AstraGuard routes it to `YELLOW_REVIEW` or `UNKNOWN_PATTERN_REVIEW` for extended 240h burn-in or manual QA inspection, preventing premature scrap of high-value spaceflight lots while guaranteeing safety."

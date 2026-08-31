@@ -24,9 +24,11 @@ def run_master_validation_suite():
     # -------------------------------------------------------------------------
     # LAYER 1, 2, 4: LEAVE-ONE-LOT-OUT CROSS VALIDATION ON BURN-IN DATA
     # -------------------------------------------------------------------------
-    all_files = glob.glob("D:\\SIH 2026\\astraguard_core\\data\\LOT_*.csv")
+    all_files = glob.glob("D:\\SIH 2026\\validation\\dataset\\lot_*.csv")
     if not all_files:
-        raise FileNotFoundError("No LOT CSV files found! Run pisdg_generator.py first.")
+        all_files = glob.glob("D:\\SIH 2026\\astraguard_core\\data\\LOT_*.csv")
+    if not all_files:
+        raise FileNotFoundError("No LOT CSV files found! Run dataset generator first.")
         
     lot_datasets = {os.path.basename(f).replace(".csv", ""): pd.read_csv(f) for f in all_files}
     lot_names = list(lot_datasets.keys())
@@ -126,8 +128,8 @@ def run_master_validation_suite():
     print("--- LAYER 5: IN-ORBIT TELEMETRY DEGRADATION & FDIR LEAD-TIME VALIDATION ---")
     lifecycle_engine = AstraGuardLifecycleEngine(static_limit_168h=45.0)
     
-    # Train stage A with LOT 1
-    lot1_df = lot_datasets["LOT_2026_01"]
+    # Train stage A with first available lot
+    lot1_df = list(lot_datasets.values())[0]
     lifecycle_engine.process_burnin_lot(lot1_df)
     
     # Simulate In-Orbit Telemetry Stream for SENSOR_042 over 250 Mission Days
