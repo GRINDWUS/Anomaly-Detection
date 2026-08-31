@@ -1,0 +1,67 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Pytest / Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.nox/
+.tox/
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Documentation / Internal Notes / Research Drafts
+AstraGuard_Complete_Documentation/
+Instructions/
+docs/
+readme/
+DASHBOARD_SPECIFICATION_ISRO.md
+semiconductor_qualification_research_brief.md
+AstraGuard_SIH26170_Complete_Solution_Document.docx
+
+# Local Logs & Experiment Cache Outputs
+error_log.txt
+exp_*.txt
+exp_summary.txt
+experiment_summary.txt
