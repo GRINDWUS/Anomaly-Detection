@@ -402,7 +402,7 @@ export default function AstraGuardDashboard() {
             <Compass className="w-4 h-4 text-teal-400" />
             <span className="text-slate-400">Resolved Device:</span>
             <span className="text-white font-bold">{activeContext.resolved_device_family}</span>
-            <span className="text-slate-500">({activeContext.extracted_features.primary_parameter} in {activeContext.extracted_features.unit})</span>
+            <span className="text-slate-500">({activeContext.extracted_features?.primary_parameter} in {activeContext.extracted_features?.unit})</span>
           </div>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -717,9 +717,9 @@ export default function AstraGuardDashboard() {
                   )}
 
                   <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-[11px] space-y-1">
-                    <div>Primary Param: <strong className="text-teal-300">{activeContext.extracted_features.primary_parameter}</strong></div>
-                    <div>Standard Unit: <strong className="text-teal-300">{activeContext.extracted_features.unit}</strong></div>
-                    <div>Spec Threshold: <strong className="text-teal-300">{activeContext.extracted_features.spec_limit}</strong></div>
+                    <div>Primary Param: <strong className="text-teal-300">{activeContext.extracted_features?.primary_parameter}</strong></div>
+                    <div>Standard Unit: <strong className="text-teal-300">{activeContext.extracted_features?.unit}</strong></div>
+                    <div>Spec Threshold: <strong className="text-teal-300">{activeContext.extracted_features?.spec_limit}</strong></div>
                   </div>
                 </div>
               </div>
@@ -733,7 +733,7 @@ export default function AstraGuardDashboard() {
                   <div>
                     <div className="text-slate-400 mb-1">Target Failure Modes:</div>
                     <div className="flex flex-wrap gap-1.5">
-                      {activeContext.matched_failure_modes.map((fm, i) => (
+                      {activeContext.matched_failure_modes?.map((fm, i) => (
                         <span key={i} className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono text-[10px] font-bold">
                           {fm}
                         </span>
@@ -751,7 +751,7 @@ export default function AstraGuardDashboard() {
                   <div>
                     <div className="text-slate-400 mb-1">Resolution Diagnostic Trace:</div>
                     <div className="p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-[10px] text-slate-300 leading-relaxed font-mono">
-                      {activeContext.diagnostic_trace.join(" ")}
+                      {activeContext.diagnostic_trace?.join(" ")}
                     </div>
                   </div>
                 </div>
@@ -815,7 +815,7 @@ export default function AstraGuardDashboard() {
               <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 flex flex-col justify-between">
                 <div>
                   <h3 className="text-xs font-semibold text-slate-300 mb-4">Live SHAP Physics Feature Attribution Response</h3>
-                  {shapData ? (
+                  {shapData && shapData.shap_values ? (
                     <div className="space-y-3 text-xs">
                       <div>
                         <div className="flex justify-between text-slate-400 mb-1">

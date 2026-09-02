@@ -1,13 +1,15 @@
 """
-AstraGuard 2.3 — ASQD Context-Aware Multi-Device Lot Simulator
+AstraGuard 2.4 — ASQD Context-Aware Multi-Device Lot Simulator
 ================================================================
-Generates qualification lots for 3 device families using device-specific
+Generates qualification lots for 5 device families using device-specific
 physics-based drift models:
-  - DIGITAL_IC:      ArrheniusIDDQModel      (Ea=0.68 eV [PE])
-  - MEMS_GYROSCOPE:  ViscoelasticMEMSModel   (ZRO drift [PE])
-  - IMAGE_SENSOR:    SRHDarkCurrentModel     (Dark current [PE])
+  - DIGITAL_IC:             ArrheniusIDDQModel      (Ea=0.68 eV [PE])
+  - MIXED_SIGNAL_IC:        ArrheniusIDDQModel      (Ea=0.68 eV [PE])
+  - MEMS_GYROSCOPE:         ViscoelasticMEMSModel   (ZRO drift [PE])
+  - IMAGE_SENSOR:           SRHDarkCurrentModel     (Dark current [PE])
+  - PRECISION_VOLTAGE_REF:  ArrheniusIDDQModel      (VOS drift [PE])
 
-Each lot carries the canonical ASQD 2.3 three-dimension schema:
+Each lot carries the canonical ASQD 2.4 three-dimension schema:
   Component × Test Context × Time-Series Measurement
 
 Backward compatibility:
@@ -129,13 +131,12 @@ _FAILURE_PROFILES = {
 
 class LotSimulator:
     """
-    ASQD 2.3 multi-device qualification lot generator.
+    ASQD 2.4 multi-device qualification lot generator.
     Uses device-specific physics models for all primary parameter trajectories.
-    Backward-compat aliases ensure legacy PS pipeline runs unchanged.
+    Backward-compat aliases ensure legacy PS benchmark pipeline runs unchanged.
     """
 
     def __init__(self, base_iddq: float = 1.2, ea_eV: float = 0.68):
-        # Legacy args retained for backward compat
         self._legacy_base_iddq = base_iddq
         self._legacy_ea_eV = ea_eV
 
@@ -145,7 +146,6 @@ class LotSimulator:
         )
         names = [p[0] for p in profiles_spec]
         weights = [p[1] for p in profiles_spec]
-        # Normalise weights
         total = sum(weights)
         weights = [w / total for w in weights]
         return list(np.random.choice(names, size=num_components, p=weights))
@@ -153,10 +153,6 @@ class LotSimulator:
     def _get_physics_model(self, device_family: str):
         factory = _DEVICE_MODEL_MAP.get(device_family, _DEVICE_MODEL_MAP["DIGITAL_IC"])
         model = factory()
-        # Override with legacy args if DIGITAL_IC (PS compat)
-        if device_family in ("DIGITAL_IC", "MIXED_SIGNAL_IC", "PRECISION_VOLTAGE_REF"):
-            if hasattr(model, "base_iddq"):
-                model.aging_rate = 0.001
         return model
 
     def generate_lot(
@@ -168,36 +164,46 @@ class LotSimulator:
         test_type: str = None,
         corrupt_metadata: bool = False,
         strip_metadata: bool = False,
+        seed: int = None,
     ) -> pd.DataFrame:
         """
-        Generate an ASQD 2.3 lot DataFrame.
-
-        Columns follow the three-dimension ASQD schema:
-          Component (Layer 1-2) × Test Context (Layer 3) × Measurement (Layer 4)
-          + Ground Truth (Layer 5) + Spatial (Layer 6)
-
-        Legacy aliases preserved for PS backward compatibility.
+        Generate an ASQD 2.4 lot DataFrame.
+        Includes controlled process variation, lot baseline scaling, and secondary parameter noise.
         """
+        if seed is not None:
+            np.random.seed(seed)
+
         cfg = _DEVICE_PARAM_CONFIG.get(device_family, _DEVICE_PARAM_CONFIG["DIGITAL_IC"])
         effective_test_type = test_type or cfg["default_test_type"]
 
         profiles = self._assign_failure_profiles(num_components, device_family)
         physics_model = self._get_physics_model(device_family)
+
+        # Lot-level baseline variation [SA]
+        lot_base_scale = float(np.clip(np.random.normal(1.0, 0.08), 0.85, 1.20))
         records = []
 
         for comp_idx in range(num_components):
             profile = profiles[comp_idx]
-            comp_id = f"LOT{lot_id:02d}_COMP{comp_idx:04d}"
+            comp_id = f"{device_family[:3]}_LOT{lot_id:02d}_COMP{comp_idx:04d}"
+
+            # Component process corner variation [SA]
+            comp_base_scale = float(np.clip(np.random.normal(1.0, 0.12), 0.70, 1.35))
 
             # === Physics trajectory (device-specific) ===
-            traj = physics_model.generate_trajectory(num_hours, profile)
+            traj = physics_model.generate_trajectory(
+                num_hours=num_hours,
+                profile=profile,
+                comp_base_scale=comp_base_scale,
+                lot_base_scale=lot_base_scale
+            )
 
             v0   = traj[0]
             v24  = traj[24]  if len(traj) > 24  else traj[-1]
             v96  = traj[96]  if len(traj) > 96  else traj[-1]
             v168 = traj[168] if len(traj) > 168 else traj[-1]
 
-            # === Metadata fields for context resolution  ===
+            # === Metadata fields for context resolution ===
             assigned_family   = None if strip_metadata else device_family
             assigned_test     = None if strip_metadata else effective_test_type
             assigned_param    = cfg["primary_parameter"]
@@ -235,7 +241,7 @@ class LotSimulator:
                 "stress_voltage_v":     cfg["stress_voltage_v"],
                 "duration_hours":        num_hours,
 
-                # --- ASQD Layer 4a: Primary Measurement (parameterised, not IDDQ-specific) ---
+                # --- ASQD Layer 4a: Primary Measurement ---
                 "primary_parameter":   assigned_param,
                 "parameter_category":  cfg["category"],
                 "unit":                assigned_unit,
@@ -271,16 +277,21 @@ class LotSimulator:
     def _generate_secondary_params(
         self, device_family: str, v0: float, v24: float, profile: str
     ) -> dict:
-        """Generate device-specific secondary measurement columns. All [SA]."""
+        """Generate device-specific secondary measurement columns with synthetic variation."""
+        v_offset_0 = round(float(np.random.normal(0, 0.02)), 4)
+        v_offset_24 = round(float(v_offset_0 + np.random.normal(0, 0.05)), 4)
+        snr_0 = round(float(np.random.normal(35.0, 1.2)), 2)
+        snr_24 = round(float(snr_0 + np.random.normal(0, 0.5)), 2)
+
         if device_family == "DIGITAL_IC":
             return {
                 "ICC_active_mA":       round(float(np.random.normal(25.0, 1.5)), 3),
                 "input_leakage_nA":    round(float(np.random.normal(2.0, 0.3)), 4),
                 "propagation_delay_ns": round(float(np.random.normal(12.5, 0.8)), 3),
-                "v_offset_0h":         0.0,
-                "v_offset_24h":        round(float(np.random.normal(0, 0.05)), 4),
-                "snr_0h":              35.0,
-                "snr_24h":             round(float(35.0 + np.random.normal(0, 0.5)), 2),
+                "v_offset_0h":         v_offset_0,
+                "v_offset_24h":        v_offset_24,
+                "snr_0h":              snr_0,
+                "snr_24h":             snr_24,
             }
         elif device_family == "MEMS_GYROSCOPE":
             return {
@@ -288,9 +299,9 @@ class LotSimulator:
                 "noise_density_dps_rtHz": round(float(np.random.uniform(0.003, 0.006)), 5),
                 "supply_current_mA":      round(float(np.random.normal(5.5, 0.2)), 3),
                 "temperature_sensitivity_dps_C": round(float(np.random.normal(0.008, 0.002)), 5),
-                "v_offset_0h":            0.0,
-                "v_offset_24h":           round(float(np.random.normal(0, 0.001)), 5),
-                "snr_0h":                 28.0,
+                "v_offset_0h":            v_offset_0,
+                "v_offset_24h":           v_offset_24,
+                "snr_0h":                 round(float(np.random.normal(28.0, 1.0)), 2),
                 "snr_24h":               round(float(28.0 + np.random.normal(0, 0.3)), 2),
             }
         elif device_family == "IMAGE_SENSOR":
@@ -299,15 +310,15 @@ class LotSimulator:
                 "hot_pixel_count":       int(max(0, np.random.poisson(5))),
                 "supply_current_mA":     round(float(np.random.normal(42.0, 2.0)), 2),
                 "dark_signal_mean_DN":   round(float(np.random.normal(8.0, 1.5)), 2),
-                "v_offset_0h":           0.0,
-                "v_offset_24h":          round(float(np.random.normal(0, 0.5)), 3),
-                "snr_0h":                62.0,
+                "v_offset_0h":           v_offset_0,
+                "v_offset_24h":          v_offset_24,
+                "snr_0h":                round(float(np.random.normal(62.0, 1.5)), 2),
                 "snr_24h":               round(float(62.0 + np.random.normal(0, 0.5)), 2),
             }
         else:
             return {
-                "v_offset_0h":  0.0,
-                "v_offset_24h": round(float(np.random.normal(0, 0.05)), 4),
-                "snr_0h":       35.0,
-                "snr_24h":      round(float(35.0 + np.random.normal(0, 0.5)), 2),
+                "v_offset_0h":  v_offset_0,
+                "v_offset_24h": v_offset_24,
+                "snr_0h":       snr_0,
+                "snr_24h":      snr_24,
             }
