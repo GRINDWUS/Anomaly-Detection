@@ -94,7 +94,10 @@ scripts/
 
 # Trained model binaries & large data artefacts
 models/
-ASQD_2.4/
+
+# ASQD 2.4 dataset — track all except the 17MB training split (not needed for SDK demo)
+# The blind_test, validation, lot CSVs and manifest are needed for SDK testing on other devices
+ASQD_2.4/asqd_24_train.csv
 
 # Large generated CSV datasets (re-generatable from dataset_generator/)
 validation/dataset/*.csv
