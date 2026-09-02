@@ -65,3 +65,34 @@ error_log.txt
 exp_*.txt
 exp_summary.txt
 experiment_summary.txt
+*_log.txt
+*_log2.txt
+*_output.txt
+*_output_utf8.txt
+*_results.txt
+separability_results.txt
+test_output.txt
+unit_test_validation.csv
+
+# Scratch / Temp Server Recovery Files
+deleted_server_code.py
+deleted_utf8.py
+old_server*.py
+old_server*.diff
+server_*.py
+server_*.diff
+
+# Temporary SDK audit challenge CSVs
+sdk_corrupted_challenge.csv
+sdkdemo.csv
+
+# Per-session audit log files (only latest_audit.json is meaningful)
+astraguard_sdk/audit_logs/AG-SDK-*.json
+
+# Research & auxiliary scripts (not part of deployable product)
+scripts/
+
+# Trained model binaries & large data artefacts
+models/
+ASQD_2.4/
+training/
