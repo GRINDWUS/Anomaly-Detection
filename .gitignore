@@ -95,4 +95,6 @@ scripts/
 # Trained model binaries & large data artefacts
 models/
 ASQD_2.4/
-training/
+
+# Large generated CSV datasets (re-generatable from dataset_generator/)
+validation/dataset/*.csv
