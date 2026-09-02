@@ -17,9 +17,13 @@ class TestPreprocessingPipeline(unittest.TestCase):
 
     def setUp(self):
         self.asqd_dir = "ASQD_2.4"
-        self.df_train = pd.read_csv(os.path.join(self.asqd_dir, "asqd_24_train.csv"))
-        self.df_val   = pd.read_csv(os.path.join(self.asqd_dir, "asqd_24_validation.csv"))
-        self.df_test  = pd.read_csv(os.path.join(self.asqd_dir, "asqd_24_blind_test.csv"))
+        # We use small committed lot subsets for testing instead of full artifacts to save space.
+        self.df_train = pd.read_csv(os.path.join(self.asqd_dir, "digital_ic_lot_00.csv"))
+        self.df_train["device_family"] = "DIGITAL_IC"
+        self.df_val   = pd.read_csv(os.path.join(self.asqd_dir, "digital_ic_lot_01.csv"))
+        self.df_val["device_family"] = "DIGITAL_IC"
+        self.df_test  = pd.read_csv(os.path.join(self.asqd_dir, "digital_ic_lot_02.csv"))
+        self.df_test["device_family"] = "DIGITAL_IC"
 
     def test_strict_zero_leakage_isolation(self):
         """Verify that fitting preprocessor on train vs train+val yields distinct scaler parameters."""

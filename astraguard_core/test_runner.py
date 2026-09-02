@@ -9,7 +9,7 @@ import numpy as np
 from astraguard_core.predictor_fast import AstraGuardPredictorFast
 from src.astraguard_lifecycle_engine import AstraGuardLifecycleEngine
 
-def test_single_component_interactive(iddq_0h: float, iddq_24h: float, wafer_x: float = 0.0, wafer_y: float = 0.0):
+def run_single_component_interactive(iddq_0h: float, iddq_24h: float, wafer_x: float = 0.0, wafer_y: float = 0.0):
     print("\n==========================================================================")
     print("           ASTRAGUARD REAL-TIME COMPONENT TEST (SINGLE COMPONENT)")
     print("==========================================================================")
@@ -61,9 +61,9 @@ if __name__ == "__main__":
         iddq_24 = float(sys.argv[2])
         wx = float(sys.argv[3]) if len(sys.argv) >= 4 else 0.0
         wy = float(sys.argv[4]) if len(sys.argv) >= 5 else 0.0
-        test_single_component_interactive(iddq_0, iddq_24, wx, wy)
+        run_single_component_interactive(iddq_0, iddq_24, wx, wy)
     else:
         # Default test cases
         print("--- RUNNING SAMPLE COMPONENT TEST CASES ---")
-        test_single_component_interactive(iddq_0h=12.5, iddq_24h=13.1)  # Healthy
-        test_single_component_interactive(iddq_0h=11.5, iddq_24h=24.8)  # Thermal Runaway Defect
+        run_single_component_interactive(iddq_0h=12.5, iddq_24h=13.1)  # Healthy
+        run_single_component_interactive(iddq_0h=11.5, iddq_24h=24.8)  # Thermal Runaway Defect
