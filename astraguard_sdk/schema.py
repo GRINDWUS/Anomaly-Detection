@@ -36,9 +36,11 @@ class AnalysisSessionMetadata(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     operator_id: Optional[str] = "QA_OPERATOR_DEFAULT"
     analysis_mode: str = "FULL_SCREENING_ANALYSIS"
-    sdk_version: str = "2.4.0-safe-ate"
-    model_version: str = "XGBoost-Relative-2.3"
-    policy_version: str = "ASQD-Policy-v2"
+    system_version: str = "AstraGuard-2.4"
+    model_version: str = "Module-B-v2"
+    feature_engine_version: str = "v2"
+    threshold_config_version: str = "phase3"
+    decision_policy_version: str = "2.4"
     read_only_guarantee: bool = True
 
 

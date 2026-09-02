@@ -40,8 +40,8 @@ class CSVATEAdapter(BaseATEAdapter):
                 parameter_name=param_name,
                 value=val,
                 unit=unit,
-                temperature_c=float(row.get("stress_temperature_c", row.get("temperature", 25.0))),
-                operating_voltage_v=float(row.get("stress_voltage_v", row.get("voltage", 5.0))),
+                temperature_c=float(row.get("stress_temperature_c", row.get("temperature_C", row.get("temperature", 25.0)))),
+                operating_voltage_v=float(row.get("stress_voltage_v", row.get("voltage_V", row.get("voltage", 5.0)))),
                 metadata={
                     "value_0h": float(row.get("iddq_0h", row.get("value_0h", val))),
                     "value_24h": val,
@@ -49,6 +49,7 @@ class CSVATEAdapter(BaseATEAdapter):
                     "value_168h": float(row.get("iddq_168h_actual", row.get("value_168h", val * 1.05))),
                     "wafer_x": float(row.get("wafer_x", 0.0)),
                     "wafer_y": float(row.get("wafer_y", 0.0)),
+                    **{k: v for k, v in row.items() if str(v) != "nan"}, # Add all extra columns to metadata
                 }
             )
             records.append(rec)

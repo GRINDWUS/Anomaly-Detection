@@ -45,4 +45,8 @@ class AstraGuardAuditLogger:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(record, f, indent=2)
 
+        latest_path = os.path.join(self.log_dir, "latest_audit.json")
+        with open(latest_path, "w", encoding="utf-8") as f:
+            json.dump(record, f, indent=2)
+
         return filepath

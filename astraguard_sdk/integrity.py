@@ -71,11 +71,19 @@ class DataIntegrityValidator:
             values.append(rec.value)
             valid_records.append(rec)
 
-        # 3. Detect Frozen ATE Channel (Explicit Metadata or Lockup flag)
-        for r in valid_records:
+        # 3. Detect Hardware Faults (Explicit Metadata, Lockup flag, or Invalid Signals)
+        invalid_signal_count = 0
+        for r in records:
             meta_status = str(r.metadata.get("instrument_status", ""))
+            gt_mode = str(r.metadata.get("ground_truth_mode", ""))
+            
             if r.measurement_state == "FROZEN_CHANNEL" or "FROZEN" in meta_status.upper():
                 frozen_count += 1
+            if r.measurement_state in ["UNKNOWN_UNIT", "OUT_OF_RANGE"]:
+                invalid_signal_count += 1
+            if "FAULT" in meta_status.upper() or "FAULT" in gt_mode.upper():
+                inst_status = "INSTRUMENT_FAULT"
+                issues.append(f"Explicit hardware fault metadata detected on component {r.component_id}.")
 
         if frozen_count > 0 and frozen_count == len(valid_records):
             inst_status = "INSTRUMENT_FAULT_FROZEN_CHANNEL"
@@ -83,6 +91,9 @@ class DataIntegrityValidator:
                 "INSTRUMENT WARNING: Frozen channel flag detected across ATE stream. "
                 "Suspected ATE SMU frozen channel or data logger lockup."
             )
+        elif invalid_signal_count > 0:
+            inst_status = "INSTRUMENT_FAULT"
+            issues.append(f"INSTRUMENT WARNING: {invalid_signal_count} records had OUT_OF_RANGE values or UNKNOWN_UNIT (invalid signals).")
 
         # 4. Calculate Data Quality Score
         total = len(records)
