@@ -8,10 +8,18 @@ Ensures complete scientific traceability and reproducible ISRO panel audit verif
 """
 
 import os
+import sys
 import json
 import pickle
 import hashlib
 from typing import Dict, Any, Tuple
+import numpy as np
+
+# NumPy 2.x -> 1.x unpickling backward compatibility shim
+if not hasattr(np, "_core"):
+    sys.modules["numpy._core"] = np.core
+    if hasattr(np.core, "multiarray"):
+        sys.modules["numpy._core.multiarray"] = np.core.multiarray
 
 
 class ArtifactManager:

@@ -5,10 +5,17 @@ Registry managing locked trained Module B regressor models across all 5 device f
 """
 
 import os
+import sys
 import pickle
 from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
+
+# NumPy 2.x -> 1.x unpickling backward compatibility shim
+if not hasattr(np, "_core"):
+    sys.modules["numpy._core"] = np.core
+    if hasattr(np.core, "multiarray"):
+        sys.modules["numpy._core.multiarray"] = np.core.multiarray
 
 
 class ModuleBRegistry:
