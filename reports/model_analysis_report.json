@@ -105,36 +105,36 @@
     "per_failure_mode": {
       "MEMS_STICTION_ONSET": {
         "sample_count": 39,
-        "mae": 0.004100333955498753,
-        "rmse": 0.004709600453986001,
+        "mae": 0.004100333955498757,
+        "rmse": 0.004709600453986006,
         "recall": 1.0,
         "defective_count": 0
       },
       "NOMINAL": {
         "sample_count": 1902,
-        "mae": 0.002555477306589514,
+        "mae": 0.0025554773065895146,
         "rmse": 0.003091042981777025,
         "recall": 1.0,
         "defective_count": 0
       },
       "PACKAGING_STRESS_RELAXATION": {
         "sample_count": 29,
-        "mae": 0.0013759956715550727,
-        "rmse": 0.0018439343162307265,
+        "mae": 0.0013759956715550788,
+        "rmse": 0.0018439343162307315,
         "recall": 1.0,
         "defective_count": 0
       },
       "SPATIAL_OUTLIER": {
         "sample_count": 11,
-        "mae": 0.01234584242424238,
-        "rmse": 0.013581736257462479,
+        "mae": 0.01234584242424236,
+        "rmse": 0.01358173625746246,
         "recall": 1.0,
         "defective_count": 0
       },
       "THERMAL_RUNAWAY": {
         "sample_count": 19,
         "mae": 0.002589692683096635,
-        "rmse": 0.002946398716022614,
+        "rmse": 0.0029463987160226134,
         "recall": 1.0,
         "defective_count": 0
       }
@@ -143,7 +143,7 @@
   "IMAGE_SENSOR": {
     "sample_count": 2000,
     "mae": 1.705127457135161,
-    "rmse": 1.9365120382169418,
+    "rmse": 1.9365120382169416,
     "r2": 0.9654947163482729,
     "recall": 1.0,
     "precision": 1.0,
@@ -152,8 +152,8 @@
     "per_failure_mode": {
       "DARK_CURRENT_SPIKE_GROWTH": {
         "sample_count": 24,
-        "mae": 3.210922596424588,
-        "rmse": 3.917870668376078,
+        "mae": 3.210922596424595,
+        "rmse": 3.9178706683760804,
         "recall": 1.0,
         "defective_count": 24
       },
@@ -166,22 +166,22 @@
       },
       "NOMINAL": {
         "sample_count": 1914,
-        "mae": 1.5798868111564959,
-        "rmse": 1.6040920650464714,
+        "mae": 1.5798868111564963,
+        "rmse": 1.6040920650464712,
         "recall": 1.0,
         "defective_count": 0
       },
       "SPATIAL_OUTLIER": {
         "sample_count": 20,
-        "mae": 3.9851132631938513,
-        "rmse": 4.49516176201066,
+        "mae": 3.985113263193847,
+        "rmse": 4.495161762010652,
         "recall": 1.0,
         "defective_count": 20
       },
       "THERMAL_RUNAWAY": {
         "sample_count": 24,
-        "mae": 8.3943075026882,
-        "rmse": 8.554236062062234,
+        "mae": 8.394307502688198,
+        "rmse": 8.55423606206223,
         "recall": 1.0,
         "defective_count": 24
       }
