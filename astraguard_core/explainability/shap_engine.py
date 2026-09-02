@@ -7,7 +7,6 @@ Uses LinearExplainer for Ridge models and TreeExplainer for Tree models.
 
 import numpy as np
 import pandas as pd
-import shap
 from typing import Dict, Any, List, Tuple
 
 
@@ -17,6 +16,8 @@ class SHAPExplainabilityEngine:
     def __init__(self, model: Any, feature_names: List[str] = None):
         self.model = model
         self.feature_names = feature_names
+
+        import shap  # Lazy import to avoid LLVM/numba C-extension conflicts during unpickling on Windows
 
         # Initialize appropriate SHAP explainer
         if hasattr(model, "coef_"):

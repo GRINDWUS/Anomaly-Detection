@@ -1,29 +1,31 @@
 {
-  "session_id": "AG-SDK-C90DE426",
-  "audit_id": "AUDIT-95108E8BAB80",
-  "timestamp": "2026-09-02T10:04:41.611211",
-  "operator_id": "QA_OPERATOR_CLI",
+  "session_id": "AG-SDK-F56DBEFA",
+  "audit_id": "AUDIT-90A9013C2EF6",
+  "timestamp": "2026-09-02T10:32:17.682556",
+  "operator_id": "TEST_SYSTEM_OP",
   "read_only_guarantee": true,
   "context": {
     "status": "PARTIAL_CONTEXT",
     "resolved_device": "DIGITAL_IC",
     "resolved_test": "THERMAL_BURN_IN",
     "resolved_param": "IDDQ",
-    "confidence": 0.594
+    "confidence": 0.963
   },
-  "data_quality_score": 0.875,
-  "instrument_health": "INSTRUMENT_FAULT",
-  "recommendation": "HOLD_OPERATOR_REVIEW",
+  "data_quality_score": 1.0,
+  "instrument_health": "INSTRUMENT_HEALTHY",
+  "recommendation": "GREEN_NORMAL_CANDIDATE",
   "evidence_trail": [
-    "[SAFETY_INTERLOCK] Context Status: ResolutionStatus.PARTIAL_CONTEXT",
-    "[QA_ALERT] Instrument QA Status: INSTRUMENT_FAULT"
+    "[CONTEXT] Resolved Device: DIGITAL_IC via ResolutionStatus.PARTIAL_CONTEXT (Conf: 0.96)",
+    "[ROUTER] Active Anomaly Model: RobustZScorePopulationDetector",
+    "[ROUTER] Active Forecaster: PhysicsArrheniusTemporalForecaster",
+    "[METRICS] Evaluated 1 components | Green: 1, Yellow: 0, Red: 0",
+    "[BENCHMARK] Chamber Hours Saved: 85.71%"
   ],
   "reasons": [
-    "Automated screening model interlocked: Context is ambiguous/unknown or test equipment hardware fault was detected."
+    "100% of evaluated components meet population stability and 168h forecast thresholds."
   ],
   "components_summary": {
-    "HOLD": 0,
-    "GREEN": 0,
+    "GREEN": 1,
     "YELLOW": 0,
     "RED": 0
   }
