@@ -46,6 +46,7 @@ class DeviceMetadata(BaseModel):
 
 
 class TestMetadata(BaseModel):
+    __test__ = False
     test_program_id: Optional[str] = Field(default=None, description="ATE Test Program identifier")
     procedure_id: Optional[str] = Field(default=None, description="Standard Operating Procedure ID")
     test_step_id: Optional[str] = Field(default=None, description="Specific step ID e.g. STEP_168H_FINAL")
@@ -72,6 +73,7 @@ class StressConditions(BaseModel):
 
 
 class TestContext(BaseModel):
+    __test__ = False
     device_metadata: DeviceMetadata = Field(default_factory=DeviceMetadata)
     test_metadata: TestMetadata = Field(default_factory=TestMetadata)
     hardware_context: HardwareContext = Field(default_factory=HardwareContext)
