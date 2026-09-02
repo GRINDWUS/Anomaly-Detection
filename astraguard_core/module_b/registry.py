@@ -11,12 +11,6 @@ from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
 
-# NumPy 2.x -> 1.x unpickling backward compatibility shim
-if not hasattr(np, "_core"):
-    sys.modules["numpy._core"] = np.core
-    if hasattr(np.core, "multiarray"):
-        sys.modules["numpy._core.multiarray"] = np.core.multiarray
-
 
 class ModuleBRegistry:
     """Registry providing locked trained Module B models for 168h degradation inference."""
